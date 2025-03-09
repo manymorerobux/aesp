@@ -1,0 +1,79 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+-- 创建渐变颜色序列
+local colorSequence = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),    -- 红
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 0)),-- 黄
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 255, 0))     -- 绿
+})
+
+-- 创建基础UI
+local function createHealthGui(player)
+    local gui = Instance.new("BillboardGui")
+    gui.Name = "HealthDisplay"
+    gui.Size = UDim2.new(0, 100, 0, 30)
+    gui.AlwaysOnTop = true
+    gui.ResetOnSpawn = false
+    gui.Adornee = player.Character and player.Character:FindFirstChild("Head")
+
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.TextScaled = false
+    textLabel.TextSize = 12  -- 小字体
+    textLabel.Font = Enum.Font.GothamBold
+    textLabel.Text = "100HP"
+
+    -- 添加字体渐变效果
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 1
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    stroke.Transparency = 0.5
+
+    -- 颜色渐变动画
+    local hue = 0
+    RunService.Heartbeat:Connect(function(dt)
+        hue = (hue + dt/2) % 1
+        local color = colorSequence.Keypoints[2].Value:Lerp(
+            colorSequence.Keypoints[math.floor(hue * 2) + 1].Value,
+            hue * 2 % 1
+        )
+        textLabel.TextColor3 = color
+    end)
+
+    textLabel.Parent = gui
+    gui.Parent = player.Character and player.Character:FindFirstChild("Head") or player.CharacterAdded:Wait():WaitForChild("Head")
+    return gui
+end
+
+-- 更新血量显示
+local function updateHealthDisplay(player)
+    if not player.Character then return end
+    
+    local humanoid = player.Character:FindFirstChild("Humanoid")
+    if not humanoid then return end
+    
+    local gui = player.Character.Head:FindFirstChild("HealthDisplay")
+    if not gui then
+        gui = createHealthGui(player)
+    end
+
+    humanoid.HealthChanged:Connect(function(health)
+        gui.TextLabel.Text = string.format("%dHP", math.floor(health))
+    end)
+end
+
+-- 主循环
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        updateHealthDisplay(player)
+    end)
+end)
+
+-- 初始化已有玩家
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= Players.LocalPlayer then
+        updateHealthDisplay(player)
+    end
+end
